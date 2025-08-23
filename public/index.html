@@ -1,0 +1,727 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Presensi Siswa</title>
+    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        .card-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .status-hadir { background: linear-gradient(45deg, #10b981, #34d399); }
+        .status-alpa { background: linear-gradient(45deg, #ef4444, #f87171); }
+        .status-izin { background: linear-gradient(45deg, #f59e0b, #fbbf24); }
+        .status-sakit { background: linear-gradient(45deg, #8b5cf6, #a78bfa); }
+        .status-terlambat { background: linear-gradient(45deg, #f97316, #fb923c); }
+        
+        .loading-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #3b82f6;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        .status-online {
+            background-color: #10b981;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        .status-offline {
+            background-color: #ef4444;
+            animation: none;
+        }
+        
+        .status-error {
+            background-color: #f59e0b;
+            animation: blink 1s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        
+        .refresh-spin {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Toast Notification Styles */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            max-width: 400px;
+        }
+        
+        .toast {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-left: 4px solid #10b981;
+            padding: 16px;
+            margin-bottom: 12px;
+            transform: translateX(100%);
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            opacity: 0;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        
+        .toast.hide {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        
+        .toast-success { border-left-color: #10b981; }
+        .toast-info { border-left-color: #3b82f6; }
+        .toast-warning { border-left-color: #f59e0b; }
+        .toast-error { border-left-color: #ef4444; }
+        
+        .professional-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .professional-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+        /* Glass morphism effect */
+        .glass {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        /* Button styles */
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #1d4ed8, #1e40af);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px 0 rgba(59, 130, 246, 0.4);
+        }
+
+        
+        .professional-button:active {
+            transform: translateY(0);
+        }
+
+         /* Custom card preview styling for B1 portrait-like size */
+        .card-preview {
+            width: 220px; /* Width for portrait orientation */
+            height: 350px; /* Height for portrait orientation */
+            background: #ffffff; /* Clean white background */
+            border: 1px solid #ccc; /* Light gray border */
+            border-radius: 15px;
+            position: relative; /* Keep relative if QR is inside but needs specific alignment */
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.08); /* Slightly softer shadow */
+            display: flex; /* Use flex for card content */
+            flex-direction: column; /* Stack content vertically */
+            justify-content: space-between; /* Distribute space between sections */
+            padding: 20px;
+            color: #333; /* Default text color for card content */
+        }
+
+        .card-content-section {
+            display: flex;
+            flex-direction: column;
+            gap: 5px; /* Spacing between text lines */
+            flex-grow: 1; /* Allow content to grow */
+            justify-content: center; /* Center items vertically within their section */
+            text-align: center; /* Center align text within this section */
+        }
+
+        .qr-code {
+            width: 150px; /* Size for QR code */
+            height: 150px;
+            background: white;
+            border-radius: 8px;
+            padding: 5px;
+            display: flex; /* Use flex to center QR image */
+            align-items: center;
+            justify-content: center;
+            margin: 10px auto; /* Center QR code horizontally and add vertical margin */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .qr-code img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* Loading spinner for buttons */
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 20px; /* Smaller spinner for button */
+            height: 20px; /* Smaller spinner for button */
+            animation: spin 1s linear infinite;
+            display: inline-block; /* Ensure it stays in line with text */
+            vertical-align: middle; /* Align with text vertically */
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Fade-in animation for sections */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .card-preview {
+                width: 180px; /* Smaller width for very small screens */
+                height: 280px; /* Adjust height proportionally */
+                padding: 15px;
+            }
+            .qr-code {
+                width: 80px;
+                height: 80px;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+        }
+
+
+
+
+
+
+
+
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen">
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+    
+
+    <!-- Clean Header -->
+    <!-- <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div class="container mx-auto px-6">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                        <i class="fas fa-user-check text-blue-600 text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-800">Sistem Presensi</h1>
+                        <p class="text-xs text-gray-500">Real-time Monitoring</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div id="connectionStatus" class="flex items-center text-sm text-gray-600">
+                        <div id="statusIndicator" class="loading-dot mr-2"></div>
+                        <span id="statusText">Live</span>
+                        <span id="lastUpdate" class="ml-2 text-xs text-gray-400"></span>
+                        <span id="nextRefresh" class="ml-2 text-xs text-blue-400"></span>
+                    </div>
+                    <button onclick="checkCard()" class="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2 font-medium">
+                        <i class="fas fa-id-card"></i>
+                        <span>Cek Kartu Presensi</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header> -->
+    <header class="glass sticky top-0 z-40 border-b border-white/20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16 sm:h-20">
+            <div class="flex items-center space-x-2 sm:space-x-4">
+                <div class="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-user-check text-white text-sm sm:text-lg"></i>
+                </div>
+                <div class="hidden sm:block">
+                    <h1 class="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                        Sistem Presensi
+                    </h1>
+                    <p class="text-xs text-gray-500">Real-time Monitoring</p>
+                </div>
+                <div class="block sm:hidden">
+                    <h1 class="text-sm font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                        Sistem Presensi
+                    </h1>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2 sm:space-x-4">
+                <div id="connectionStatus" class="hidden lg:flex items-center space-x-2 text-sm text-gray-600">
+                    <div id="statusIndicator" class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <span id="statusText">Live</span>
+                    <span id="lastUpdate" class="text-xs text-gray-400"></span>
+                    <span id="nextRefresh" class="text-xs text-blue-400"></span>
+                </div>
+                <button onclick="checkCard()" class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+                    <i class="fas fa-id-card text-sm"></i>
+                    <span class="hidden sm:inline">Cek Kartu Presensi</span>
+                    <span class="sm:hidden">Kartu</span>
+                </button>
+                <button id="refreshButton" onclick="manualRefresh()" class="btn-touch bg-white text-blue-600 hover:bg-blue-50 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-medium flex items-center space-x-2 text-sm border border-blue-200">
+                        <i id="refreshIcon" class="fas fa-sync-alt"></i>
+                        <span class="hidden sm:inline">Refresh</span>
+                        <span class="sm:hidden">Ref</span>
+                    </button>
+                 
+            </div>
+        </div>
+    </div>
+</header>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8"></div>
+        <div class="mb-6 sm:mb-8">
+            <div class="text-center mb-6 sm:mb-8">
+                <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Sistem Cetak Kartu Siswa</h2>
+                <p class="text-sm sm:text-base text-gray-600">Masukkan NISN untuk melihat pratinjau dan mencetak kartu siswa</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-6 py-8">
+        <!-- Dashboard Statistik -->
+        
+
+        <!-- Filter Section -->
+ <div class="bg-white rounded-xl p-6 card-shadow mb-8 animate-fade-in border border-gray-100">
+            <div class="flex flex-col sm:flex-row gap-4 items-end">
+                <div class="flex-1">
+                    <label for="nisnInput" class="block text-sm font-medium text-gray-700 mb-2">
+                        NISN
+                    </label>
+                    <input
+                        type="text"
+                        id="nisnInput"
+                        placeholder="Masukkan NISN siswa..."
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    >
+                </div>
+                <button
+                    id="searchBtn"
+                    class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium min-w-[120px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <span id="searchText">Cari Siswa</span>
+                    <div id="searchSpinner" class="loading-spinner hidden ml-2"></div>
+                </button>
+            </div>
+ </div>  
+
+        <!-- Error Message -->
+        <div id="errorMessage" class="hidden bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div class="flex items-center">
+                <svg class="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span id="errorText" class="text-red-700"></span>
+            </div>
+        </div>
+
+
+      <!-- Results Section -->
+        <div id="resultsSection" class="hidden">
+            <!-- Student Info -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6 fade-in">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Informasi Siswa</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <span class="text-sm text-gray-500">Nama:</span>
+                        <p id="studentName" class="font-medium text-gray-800"></p>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">NISN:</span>
+                        <p id="studentNISN" class="font-medium text-gray-800"></p>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Kelas:</span>
+                        <p id="studentClass" class="font-medium text-gray-800"></p>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Keterangan:</span>
+                        <p id="studentNote" class="font-medium text-gray-800"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card Preview -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6 fade-in">
+                <h2 class="text-xl font-semibold text-gray-800 mb-6">Pratinjau Kartu Siswa</h2>
+                <div class="flex justify-center">
+                    <div class="card-preview">
+                        <h5 class="text-lg font-bold text-center w-full mb-2">KARTU PRESENSI SISWA</h5>
+                        <div class="card-content-section">
+                            <p class="text-sm"><span id="cardClass"></span></p>
+                            <p class="text-sm"><span id="cardNISN"></span></p>
+                            <p class="text-sm"><span id="cardName"></span></p>
+                        </div>
+                        <div class="qr-code">
+                            <img id="qrImage" src="" alt="QR Code">
+                        </div>
+                        <p class="text-sm mt-auto text-center"><span id="cardNote"></span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-center fade-in">
+                <button
+                    id="printBtn"
+                    class="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                    </svg>
+                    <span id="printText">Cetak Kartu PDF</span>
+                    <div id="printSpinner" class="loading-spinner hidden ml-2"></div>
+                </button>
+                <button
+                    id="newSearchBtn"
+                    class="px-8 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    Cari Siswa Lain
+                </button>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+         <!-- Instructions -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-8">
+            <h3 class="font-semibold text-blue-800 mb-3">Petunjuk Penggunaan:</h3>
+            <ol class="list-decimal list-inside text-blue-700 space-y-2">
+                <li>Masukkan **NISN** siswa pada kolom yang tersedia. <a href="https://drive.google.com/file/d/1V1adkXjqvTAoz8SZqTRF0hyriXzAmGml/view?usp=sharing" target="_blank"
+                       class="inline-flex items-center px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-md hover:bg-orange-500 transition-colors shadow-sm">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101m-.757 4.899l-4 4"></path>
+                        </svg>
+                        Lihat Data NISN
+                    </a></li>
+                <li>Klik tombol **"Cari Siswa"** untuk mencari data.</li>
+                <li>Pratinjau kartu akan muncul di bawah jika data ditemukan.</li>
+                <li>Klik **"Cetak Kartu PDF"** untuk menghasilkan dan mengunduh kartu dalam format PDF.</li>
+                <li>Gunakan tombol **"Cari Siswa Lain"** untuk mereset dan mencari siswa yang berbeda.</li>
+                
+            </ol>
+        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+
+        
+    </div>
+
+    <!-- Footer -->
+    <!-- <footer class="bg-white border-t border-gray-200 mt-16">
+        <div class="container mx-auto px-6 py-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <h3 class="text-lg font-bold mb-4 text-gray-800">Sistem Presensi Siswa</h3>
+                    <p class="text-gray-600">Sistem monitoring kehadiran siswa secara real-time dengan teknologi modern.</p>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold mb-4 text-gray-800">Fitur</h3>
+                    <ul class="text-gray-600 space-y-2">
+                        <li><i class="fas fa-check mr-2 text-green-500"></i>Real-time Updates</li>
+                        <li><i class="fas fa-check mr-2 text-green-500"></i>Rekap Otomatis</li>
+                        <li><i class="fas fa-check mr-2 text-green-500"></i>Export Data</li>
+                        <li><i class="fas fa-check mr-2 text-green-500"></i>Multi Filter</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold mb-4 text-gray-800">Informasi</h3>
+                    <div class="text-gray-600 space-y-2">
+                        <p><i class="fas fa-clock mr-2 text-blue-500"></i>Update setiap detik</p>
+                        <p><i class="fas fa-database mr-2 text-blue-500"></i>Data dari Google Sheets</p>
+                        <p><i class="fas fa-shield-alt mr-2 text-blue-500"></i>Aman & Terpercaya</p>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-gray-200 mt-8 pt-8 text-center text-gray-500">
+                <p>&copy; 2024 Sistem Presensi Siswa. Dibuat dengan ❤️ untuk pendidikan.</p>
+            </div>
+        </div>
+    </footer> -->
+    <!-- Footer dengan gradient -->
+    <footer class="bg-gradient-to-r from-lime-600 via-emerald-700 to-green-900 text-white py-12 mt-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div class="col-span-1 md:col-span-2">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-10 h-10 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-clipboard-check text-white"></i>
+                        </div>
+                        <h4 class="text-xl font-bold">Sistem Presensi Digital</h4>
+                    </div>
+                    <p class="text-gray-300 mb-4 leading-relaxed">
+                        Platform manajemen presensi modern yang terintegrasi dengan Google Sheets untuk monitoring kehadiran siswa secara real-time dengan teknologi terdepan.
+                    </p>
+                    <div class="flex space-x-4">
+                        <a href="#" class="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors">
+                            <i class="fab fa-facebook-f"></i>
+                        </a>
+                        <a href="#" class="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors">
+                            <i class="fab fa-twitter"></i>
+                        </a>
+                        <a href="#" class="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors">
+                            <i class="fab fa-instagram"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">Fitur Utama</h4>
+                    <ul class="space-y-2 text-gray-300">
+                        <li class="flex items-center space-x-2">
+                            <i class="fas fa-check text-green-400 text-sm"></i>
+                            <span>Monitoring Real-time</span>
+                        </li>
+                        <li class="flex items-center space-x-2">
+                            <i class="fas fa-check text-green-400 text-sm"></i>
+                            <span>Rekap Otomatis</span>
+                        </li>
+                        <li class="flex items-center space-x-2">
+                            <i class="fas fa-check text-green-400 text-sm"></i>
+                            <span>Statistik Lengkap</span>
+                        </li>
+                        <li class="flex items-center space-x-2">
+                            <i class="fas fa-check text-green-400 text-sm"></i>
+                            <span>Export Data</span>
+                        </li>
+                        <li class="flex items-center space-x-2">
+                            <i class="fas fa-check text-green-400 text-sm"></i>
+                            <span>Multi-platform</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">Kontak & Support</h4>
+                    <div class="space-y-3 text-gray-300">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-envelope text-blue-400"></i>
+                            <span>admin@sekolah.edu</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-phone text-blue-400"></i>
+                            <span>(021) 123-4567</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-map-marker-alt text-blue-400"></i>
+                            <span>Jakarta, Indonesia</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-clock text-blue-400"></i>
+                            <span>24/7 Support</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t border-white/10 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
+                <p class="text-gray-300 text-sm">
+                    &copy; 2024 Sistem Presensi Digital. Dibuat dengan <i class="fas fa-heart text-red-400 mx-1"></i> untuk pendidikan Indonesia.
+                </p>
+                <div class="flex space-x-6 mt-4 md:mt-0 text-sm text-gray-300">
+                    <a href="#" class="hover:text-white transition-colors">Privacy Policy</a>
+                    <a href="#" class="hover:text-white transition-colors">Terms of Service</a>
+                    <a href="#" class="hover:text-white transition-colors">Help Center</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+    <script src="https://cdn.tailwindcss.com"></script>
+<script>
+// ====== Ambil referensi elemen seperti sebelumnya ======
+const nisnInput = document.getElementById('nisnInput');
+const searchBtn = document.getElementById('searchBtn');
+const searchText = document.getElementById('searchText');
+const searchSpinner = document.getElementById('searchSpinner');
+const printBtn = document.getElementById('printBtn');
+const printText = document.getElementById('printText');
+const printSpinner = document.getElementById('printSpinner');
+const newSearchBtn = document.getElementById('newSearchBtn');
+const errorMessage = document.getElementById('errorMessage');
+const errorText = document.getElementById('errorText');
+const resultsSection = document.getElementById('resultsSection');
+// Info
+const studentName = document.getElementById('studentName');
+const studentNISN = document.getElementById('studentNISN');
+const studentClass = document.getElementById('studentClass');
+const studentNote = document.getElementById('studentNote');
+// Card
+const cardName = document.getElementById('cardName');
+const cardNISN = document.getElementById('cardNISN');
+const cardClass = document.getElementById('cardClass');
+const qrImage = document.getElementById('qrImage');
+6
+const cardNote = document.getElementById('cardNote');
+let currentStudentData = null;
+function showError(msg) {
+errorText.textContent = msg;
+errorMessage.classList.remove('hidden');
+}
+function hideError() { errorMessage.classList.add('hidden'); }
+function showSearchLoading() {
+searchText.classList.add('hidden');
+searchSpinner.classList.remove('hidden');
+searchBtn.disabled = true;
+}
+function hideSearchLoading() {
+searchText.classList.remove('hidden');
+searchSpinner.classList.add('hidden');
+searchBtn.disabled = false;
+}
+function showPrintLoading() {
+printText.classList.add('hidden');
+printSpinner.classList.remove('hidden');
+printBtn.disabled = true;
+newSearchBtn.disabled = true;
+}
+function hidePrintLoading() {
+printText.classList.remove('hidden');
+printSpinner.classList.add('hidden');
+printBtn.disabled = false;
+newSearchBtn.disabled = false;
+}
+function hideResults() {
+resultsSection.classList.add('hidden');
+currentStudentData = null;
+}
+// ====== API Helpers ======
+async function apiGetStudent(nisn) {
+const res = await fetch(`/api/student/${encodeURIComponent(nisn)}`);
+if (!res.ok) {
+const err = await res.json().catch(() => ({ error: 'Gagal memuat' }));
+throw new Error(err.error || 'Gagal memuat');
+}
+return res.json();
+}
+7
+// ====== Search ======
+searchBtn.addEventListener('click', async () => {
+const nisn = nisnInput.value.trim();
+if (!nisn) {
+showError('NISN tidak boleh kosong. Mohon masukkan NISN siswa.');
+hideResults();
+return;
+}
+hideError();
+hideResults();
+showSearchLoading();
+try {
+const data = await apiGetStudent(nisn);
+currentStudentData = data;
+displayStudentData(data);
+resultsSection.classList.remove('hidden');
+resultsSection.classList.add('fade-in');
+} catch (error) {
+showError('Terjadi kesalahan saat mencari data: ' + error.message + '.Mohon coba lagi.');
+console.error(error);
+} finally {
+hideSearchLoading();
+}
+});
+// ====== Print PDF ======
+printBtn.addEventListener('click', async () => {
+if (!currentStudentData) {
+showError('Mohon cari data siswa terlebih dahulu sebelum menghasilkan PDF.');
+return;
+}
+hideError();
+showPrintLoading();
+try {
+const nisn = encodeURIComponent(currentStudentData.nisn);
+const url = `/api/student/${nisn}/pdf`;
+window.open(url, '_blank');
+} catch (error) {
+showError('Terjadi kesalahan saat membuat PDF: ' + error.message + '.Mohon coba lagi.');
+console.error(error);
+} finally {
+hidePrintLoading();
+}
+8
+});
+// ====== New Search ======
+newSearchBtn.addEventListener('click', () => {
+nisnInput.value = '';
+hideError();
+hideResults();
+nisnInput.focus();
+});
+function displayStudentData(data) {
+// Info section
+studentName.textContent = data.nama;
+studentNISN.textContent = data.nisn;
+studentClass.textContent = data.kelas;
+studentNote.textContent = data.ket;
+// Card preview
+cardName.textContent = data.nama;
+cardNISN.textContent = data.nisn;
+cardClass.textContent = data.kelas;
+qrImage.src = data.qrcodeUrl;
+qrImage.alt = `QR Code untuk ${data.nama}`;
+cardNote.textContent = data.ket;
+}
+</script>
+
+</body>
+</html>
